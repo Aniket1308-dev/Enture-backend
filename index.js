@@ -2,6 +2,16 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+const pool = require('./config/db');
+
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('DB connection error:', err);
+  } else {
+    console.log('DB connected, server time:', res.rows[0].now);
+  }
+});
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
