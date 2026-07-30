@@ -29,4 +29,16 @@ async function findUserById(id) {
   return result.rows[0];
 }
 
-module.exports = { createUser, findUserByEmail, findUserById };
+// Update a user's password hash (used by admin-only password reset endpoint)
+async function updatePassword(id, newPasswordHash) {
+  const result = await pool.query(
+    `UPDATE users
+     SET password_hash = $1, updated_at = NOW()
+     WHERE id = $2
+     RETURNING id, name, email`,
+    [newPasswordHash, id]
+  );
+  return result.rows[0];
+}
+
+module.exports = { createUser, findUserByEmail, findUserById, updatePassword };

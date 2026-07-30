@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { createUser, findUserByEmail } = require('../models/User');
+const { createUser, findUserByEmail, findUserById, updatePassword } = require('../models/User');
 
 async function register(req, res) {
   try {
@@ -73,4 +73,34 @@ async function login(req, res) {
   }
 }
 
-module.exports = { register, login };
+// Admin-only password reset (no self-service email link — matches Enture's real UX)
+async function resetUserPassword(req, res) {
+  try {
+    const { userId } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    const user = await findUserById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+    const updatedUser = await updatePassword(userId, passwordHash);
+
+    res.status(200).json({
+      message: 'Password reset successful',
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Something went wrong during password reset' });
+  }
+}
+
+
+module.exports = { register, login, resetUserPassword };
