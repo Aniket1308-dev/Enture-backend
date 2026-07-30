@@ -15,8 +15,11 @@ pool.query('SELECT NOW()', (err, res) => {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
-app.use(express.json());
+app.use(cors());          // middleware first
+app.use(express.json()); // if not already there — needed to parse req.body
+
+const authRoutes = require('./routes/authRoutes');
+app.use('/api/auth', authRoutes);  // routes mounted last
 
 app.get('/', (req, res) => {
   res.send('Enture backend is running');
