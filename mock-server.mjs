@@ -19,6 +19,12 @@ let parameterSeries = [
   { time: "24:00", value: 24 },
 ];
 
+let emsSummary = {
+  efficiency: 92,
+  uptime: 99.4,
+  activeAlerts: 2,
+};
+
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
 
@@ -29,6 +35,7 @@ io.on("connection", (socket) => {
     timestamp: Date.now(),
   });
   socket.emit("parameter:trend", parameterSeries);
+  socket.emit("ems:summary", emsSummary);  
 
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
@@ -53,4 +60,13 @@ setInterval(() => {
     { time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), value: Math.round(nudged * 10) / 10 },
   ];
   io.emit("parameter:trend", parameterSeries);
+
+  // Nudge EMS summary metrics
+  emsSummary = {
+    efficiency: Math.min(100, Math.max(0, Math.round((emsSummary.efficiency + (Math.random() - 0.5) * 3) * 10) / 10)),
+    uptime: Math.min(100, Math.max(0, Math.round((emsSummary.uptime + (Math.random() - 0.5) * 0.5) * 10) / 10)),
+    activeAlerts: Math.max(0, emsSummary.activeAlerts + (Math.random() > 0.85 ? (Math.random() > 0.5 ? 1 : -1) : 0)),
+  };
+  io.emit("ems:summary", emsSummary);
+
 }, 3000);
