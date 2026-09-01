@@ -25,6 +25,34 @@ let emsSummary = {
   activeAlerts: 2,
 };
 
+// Internal device state — value is numeric, formatted to a display string only at emit time
+let devices = [
+  { name: "Meter 01", type: "Energy", status: "Active", value: 4281, unit: "kWh", decimals: 0, min: 0, max: 10000, maxDelta: 40 },
+  { name: "Meter 02", type: "Energy", status: "Active", value: 2110, unit: "kWh", decimals: 0, min: 0, max: 10000, maxDelta: 30 },
+  { name: "Sensor A1", type: "Temperature", status: "Active", value: 24.5, unit: "°C", decimals: 1, min: -10, max: 50, maxDelta: 0.6 },
+  { name: "Sensor B2", type: "Humidity", status: "Idle", value: 48, unit: "%", decimals: 0, min: 0, max: 100, maxDelta: 2 },
+  { name: "Inverter 01", type: "Solar", status: "Active", value: 3.2, unit: "kW", decimals: 1, min: 0, max: 10, maxDelta: 0.4 },
+  { name: "Inverter 02", type: "Solar", status: "Offline", value: 0, unit: "kW", decimals: 1, min: 0, max: 10, maxDelta: 0.4 },
+];
+
+function formatDeviceValue(device) {
+  if (device.status === "Offline") return "—";
+  const formatted =
+    device.unit === "kWh"
+      ? Math.round(device.value).toLocaleString()
+      : device.value.toFixed(device.decimals);
+  return `${formatted} ${device.unit}`;
+}
+
+function getDevicesPayload() {
+  return devices.map((d) => ({
+    name: d.name,
+    type: d.type,
+    status: d.status,
+    value: formatDeviceValue(d),
+  }));
+}
+
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
 
@@ -36,6 +64,7 @@ io.on("connection", (socket) => {
   });
   socket.emit("parameter:trend", parameterSeries);
   socket.emit("ems:summary", emsSummary);  
+  socket.emit("devices:table", getDevicesPayload());  
 
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
@@ -68,5 +97,24 @@ setInterval(() => {
     activeAlerts: Math.max(0, emsSummary.activeAlerts + (Math.random() > 0.85 ? (Math.random() > 0.5 ? 1 : -1) : 0)),
   };
   io.emit("ems:summary", emsSummary);
+
+  // Random walk + occasional status flip for devices
+  devices = devices.map((d) => {
+    let status = d.status;
+    if (Math.random() > 0.85) {
+      const others = ["Active", "Idle", "Offline"].filter((s) => s !== status);
+      status = others[Math.floor(Math.random() * others.length)];
+    }
+
+    let value = d.value;
+    if (status !== "Offline") {
+      value += (Math.random() - 0.5) * d.maxDelta;
+      value = Math.min(d.max, Math.max(d.min, value));
+      value = Math.round(value * 10 ** d.decimals) / 10 ** d.decimals;
+    }
+
+    return { ...d, status, value };
+  });
+  io.emit("devices:table", getDevicesPayload());
 
 }, 3000);
